@@ -54,24 +54,24 @@ RUN apk add --no-cache \
 # Install Node.js and npm (needed for wasm-pack and bun)
 RUN apk add --no-cache nodejs npm
 
-# Install a pinned Bun archive and verify it before execution. Avoid piping a
-# mutable remote installer into a shell inside the release build.
+# Install a pinned Bun archive and verify it before execution. Use Bun's x64
+# baseline build so the builder also runs on CPUs without newer x86 extensions.
+# Avoid piping a mutable remote installer into a shell inside the release build.
 ARG BUN_VERSION=1.3.14
-ARG BUN_LINUX_X64_MUSL_SHA256=14bd9aedeebf1dba67e8def9531c89bc989ecfdf1de42e5bfcaf1b8cd9294719
+ARG BUN_LINUX_X64_MUSL_BASELINE_SHA256=56a7d6806cf155536c0178f0ea5fbd098e684fa509ebdb4fc0a7e19fb65382dc
 ARG BUN_LINUX_AARCH64_MUSL_SHA256=b98e0ad3625c5c00d1d5b5ff55605c7adddbfae151861e68ade57b2d3b8703bb
 ARG TARGETARCH
 RUN set -eux; \
     case "${TARGETARCH:-amd64}" in \
-      amd64) bun_arch="x64"; bun_sha256="$BUN_LINUX_X64_MUSL_SHA256" ;; \
-      arm64) bun_arch="aarch64"; bun_sha256="$BUN_LINUX_AARCH64_MUSL_SHA256" ;; \
+      amd64) bun_archive="bun-linux-x64-musl-baseline.zip"; bun_dir="bun-linux-x64-musl-baseline"; bun_sha256="$BUN_LINUX_X64_MUSL_BASELINE_SHA256" ;; \
+      arm64) bun_archive="bun-linux-aarch64-musl.zip"; bun_dir="bun-linux-aarch64-musl"; bun_sha256="$BUN_LINUX_AARCH64_MUSL_SHA256" ;; \
       *) echo "Unsupported Bun architecture: ${TARGETARCH:-unknown}" >&2; exit 1 ;; \
     esac; \
-    bun_zip="bun-linux-${bun_arch}-musl.zip"; \
-    curl -fsSLo "/tmp/${bun_zip}" "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${bun_zip}"; \
-    echo "${bun_sha256}  /tmp/${bun_zip}" | sha256sum -c -; \
-    unzip -q "/tmp/${bun_zip}" -d /opt; \
-    ln -s "/opt/bun-linux-${bun_arch}-musl/bun" /usr/local/bin/bun; \
-    rm "/tmp/${bun_zip}"
+    curl -fsSLo "/tmp/${bun_archive}" "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${bun_archive}"; \
+    echo "${bun_sha256}  /tmp/${bun_archive}" | sha256sum -c -; \
+    unzip -q "/tmp/${bun_archive}" -d /opt; \
+    ln -s "/opt/${bun_dir}/bun" /usr/local/bin/bun; \
+    rm "/tmp/${bun_archive}"
 
 # Install the Rust-native WASM tooling. The npm wrapper tries to download a
 # prebuilt wasm-bindgen binary that does not exist for every Alpine architecture
